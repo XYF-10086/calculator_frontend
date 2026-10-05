@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>前后端分离计算器</title>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
+  input { width: 320px; padding: 8px; font-size: 18px; }
+  button { padding: 8px 12px; margin: 4px; cursor: pointer; }
+  #result { font-size: 22px; color: green; margin: 10px 0; }
+  #error { color: red; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  td, th { border: 1px solid #ccc; padding: 6px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>前后端分离计算器</h1>
+
+<input id="expr" placeholder="例如 (1+2)*3" />
+<button onclick="calc()">计算</button>
+
+<div id="result"></div>
+<div id="error"></div>
+
+<h2>历史记录</h2>
+<button onclick="loadHistory()">刷新</button>
+
+<table id="history">
+  <thead>
+    <tr><th>ID</th><th>表达式</th><th>结果</th><th>时间</th><th>操作</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+async function calc() {
+  const expression = document.getElementById("expr").value;
+  document.getElementById("error").textContent = "";
+  try {
+    const res = await fetch(API + "/api/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expression })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById("result").textContent = "= " + data.result;
+      loadHistory();
+    } else {
+      document.getElementById("result").textContent = "";
+      document.getElementById("error").textContent = data.detail;
+    }
+  } catch (e) {
+    document.getElementById("error").textContent = "无法连接后端";
+  }
+}
+
+async function loadHistory() {
+  const res = await fetch(API + "/api/history");
+  const data = await res.json();
+  const tbody = document.querySelector("#history tbody");
+  tbody.innerHTML = "";
+  data.data.forEach(item => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${item.id}</td>
+      <td>${item.expression}</td>
+      <td>${item.result}</td>
+      <td>${item.time}</td>
+      <td><button onclick="del(${item.id})">删除</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function del(id) {
+  await fetch(API + "/api/history/" + id, { method: "DELETE" });
+  loadHistory();
+}
+
+loadHistory();
+</script>
+</body>
+</html>
